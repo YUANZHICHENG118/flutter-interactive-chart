@@ -119,7 +119,7 @@ class ChartPainter extends CustomPainter {
     final close = candle.close;
     final high = candle.high;
     final low = candle.low;
-    if (open != null && close != null&& !line) {
+    if (open != null && close != null && !line) {
       final color = open > close
           ? params.style.priceLossColor
           : params.style.priceGainColor;
@@ -139,10 +139,9 @@ class ChartPainter extends CustomPainter {
             ..color = color,
         );
       }
-
     }
 
-    if(line){
+    if (line) {
       // 绘制最新价折线图
       final latestPriceLinePaint = Paint()
         ..strokeWidth = 2.0
@@ -151,20 +150,19 @@ class ChartPainter extends CustomPainter {
       final currentX = i * params.candleWidth;
       final previousPrice = params.candles.at(i - 1);
       final currentPrice = params.candles[i];
-      if(previousPrice!=null&&currentPrice!=null){
+      if (previousPrice != null && currentPrice != null) {
         canvas.drawLine(
-          Offset(previousX, params.fitPrice(previousPrice.close??0)),
-          Offset(currentX, params.fitPrice(currentPrice.close??0)),
+          Offset(previousX, params.fitPrice(previousPrice.close ?? 0)),
+          Offset(currentX, params.fitPrice(currentPrice.close ?? 0)),
           latestPriceLinePaint,
         );
-
       }
     }
 
     // Draw volume bar
     final volume = candle.volume;
 
-    if (volume != null&&open != null && close != null) {
+    if (volume != null && open != null && close != null) {
       final color = open > close
           ? params.style.priceLossColor
           : params.style.priceGainColor;
@@ -185,7 +183,10 @@ class ChartPainter extends CustomPainter {
             ..color = Colors.blue);
 
       final pt = candle.trends.at(j); // current data point
-      final prevPt = params.candles.at(i - 1)?.trends.at(j);
+      final prevPt = params.candles
+          .at(i - 1)
+          ?.trends
+          .at(j);
       if (pt != null && prevPt != null) {
         canvas.drawLine(
           Offset(x - params.candleWidth, params.fitPrice(prevPt)),
@@ -217,9 +218,6 @@ class ChartPainter extends CustomPainter {
         }
       }
     }
-
-
-
 
   }
 

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
+import 'package:interactive_chart/src/utils/data_util.dart';
 import 'package:intl/intl.dart' as intl;
 
 import 'candle_data.dart';
@@ -106,6 +107,17 @@ class _InteractiveChartState extends State<InteractiveChart> {
   late double _prevStartOffset;
   late Offset _initialFocalPoint;
   PainterParams? _prevParams; // used in onTapUp event
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.candles.length == 0) {
+      return;
+    }
+
+    DataUtil.calculate(widget.candles);
+
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -344,7 +356,7 @@ class _InteractiveChartState extends State<InteractiveChart> {
   String defaultPriceLabel(double price) => price.toStringAsFixed(2);
 
   Map<String, String> defaultOverlayInfo(CandleData candle) {
-    final date = intl.DateFormat.yMMMd()
+    final date = intl.DateFormat('yyyy-MM-dd HH:mm:ss')
         .format(DateTime.fromMillisecondsSinceEpoch(candle.timestamp));
     return {
       "Date": date,

@@ -26,7 +26,6 @@ class BinanceRepository {
         .forEach((item){
           //print("e===${}");
           try{
-
             list.add(CandleData(
               timestamp: item[0],
               open: double.parse(item[1].toString()),
@@ -34,7 +33,6 @@ class BinanceRepository {
               low:double.parse(item[3].toString()),
               close: double.parse(item[4].toString()),
               volume: double.parse(item[5].toString())));
-
           }catch(err){
             print("error===${err}");
 
@@ -45,7 +43,7 @@ class BinanceRepository {
     //     .toList();
      print("list===${list.length}");
 
-    return list.reversed.toList();
+    return list.toList();
   }
 
   Future<List<String>> fetchSymbols() async {

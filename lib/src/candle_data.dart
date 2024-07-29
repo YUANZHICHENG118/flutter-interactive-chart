@@ -1,27 +1,29 @@
-class CandleData {
+import 'package:interactive_chart/src/second/entity/index.dart';
+
+class CandleData extends KEntity {
   /// The timestamp of this data point, in milliseconds since epoch.
   final int timestamp;
 
   /// The "open" price of this data point. It's acceptable to have null here for
   /// a few data points, but they must not all be null. If either [open] or
   /// [close] is null for a data point, it will appear as a gap in the chart.
-  final double? open;
+  final double open;
 
   /// The "high" price. If either one of [high] or [low] is null, we won't
   /// draw the narrow part of the candlestick for that data point.
-  final double? high;
+  final double high;
 
   /// The "low" price. If either one of [high] or [low] is null, we won't
   /// draw the narrow part of the candlestick for that data point.
-  final double? low;
+  final double low;
 
   /// The "close" price of this data point. It's acceptable to have null here
   /// for a few data points, but they must not all be null. If either [open] or
   /// [close] is null for a data point, it will appear as a gap in the chart.
-  final double? close;
+  final double close;
 
   /// The volume information of this data point.
-  final double? volume;
+  final double volume;
 
   /// Data holder for additional trend lines, for this data point.
   ///
@@ -41,8 +43,8 @@ class CandleData {
     required this.open,
     required this.close,
     required this.volume,
-    this.high,
-    this.low,
+    required this.high,
+    required this.low,
     List<double?>? trends,
   }) : this.trends = List.unmodifiable(trends ?? []);
 

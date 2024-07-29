@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:interactive_chart/interactive_chart.dart';
 import './repository.dart';
@@ -20,8 +22,11 @@ class _MyAppState extends State<MyApp> {
   bool loading=false;
   bool _darkMode = false;
   bool _showAverage = false;
+  bool _line = false;
   BinanceRepository repository = BinanceRepository();
-
+  late StreamSubscription subscription;
+  late bool subInit=false;
+  late Timer _timer;
   @override
   void initState() {
     // fetchSymbols().then((value) {
@@ -29,6 +34,11 @@ class _MyAppState extends State<MyApp> {
     //   if (symbols.isNotEmpty) fetchCandles(symbols[0], currentInterval);
     // });
     fetchCandles("","");
+    // _timer = Timer.periodic(Duration(seconds: 5), (timer) {
+    //   fetchCandles("","");
+    //
+    // });
+
     super.initState();
   }
 
@@ -81,11 +91,15 @@ class _MyAppState extends State<MyApp> {
                 setState(() => _showAverage = !_showAverage);
                 if (_showAverage) {
                   _computeTrendLines();
+                  _line=true;
                 } else {
                   _removeTrendLines();
+                  _line=false;
                 }
               },
             ),
+
+
           ],
         ),
         body: SafeArea(
@@ -96,15 +110,15 @@ class _MyAppState extends State<MyApp> {
                 child: CircularProgressIndicator(color: Colors.blue),
               ),
             )
-            else  SizedBox(height:500,child: InteractiveChart(
-              line: false,
+            else  SizedBox(height:300,child: InteractiveChart(
+              line: _line,
               /** Only [candles] is required */
               candles: _data,
               /** Uncomment the following for examples on optional parameters */
               /** Example styling */
               style: ChartStyle(
-                priceGainColor:const Color(0xFFFA2256) ,
-                priceLossColor:const Color(0xFF00D889) ,
+                priceGainColor:const Color(0xFF00D889) ,
+                priceLossColor:const Color(0xFFFA2256) ,
                 volumeColor: const Color(0xFF00D889),
                 trendLineStyles: [
                   Paint()
