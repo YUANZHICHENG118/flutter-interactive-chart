@@ -60,21 +60,28 @@ class InteractiveChart extends StatefulWidget {
   /// This provides the width of a candlestick at the current zoom level.
   final ValueChanged<double>? onCandleResize;
 
+  final bool line;
+
+  final double initialRight;
+
+
   const InteractiveChart({
     Key? key,
     required this.candles,
-    this.initialVisibleCandleCount = 90,
+    this.initialVisibleCandleCount = 50,
+    this.initialRight=50,
     ChartStyle? style,
     this.timeLabel,
     this.priceLabel,
     this.overlayInfo,
     this.onTap,
     this.onCandleResize,
+    this.line = false,
   })  : this.style = style ?? const ChartStyle(),
         assert(candles.length >= 3,
-            "InteractiveChart requires 3 or more CandleData"),
+        "InteractiveChart requires 3 or more CandleData"),
         assert(initialVisibleCandleCount >= 3,
-            "initialVisibleCandleCount must be more 3 or more"),
+        "initialVisibleCandleCount must be more 3 or more"),
         super(key: key);
 
   @override
@@ -105,8 +112,9 @@ class _InteractiveChartState extends State<InteractiveChart> {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final size = constraints.biggest;
-        final w = size.width - widget.style.priceLabelWidth;
-        _handleResize(w);
+        final initialWidth = size.width - widget.style.priceLabelWidth - widget.initialRight; // Subtract 100px for initial layout
+        final w = size.width - widget.style.priceLabelWidth; // Use full width for dragging and zooming
+        _handleResize(initialWidth);
 
         // Find the visible data range
         final int start = (_startOffset / _candleWidth).floor();
@@ -147,9 +155,9 @@ class _InteractiveChartState extends State<InteractiveChart> {
         }
 
         final maxPrice =
-            candlesInRange.map(highest).whereType<double>().reduce(max);
+        candlesInRange.map(highest).whereType<double>().reduce(max);
         final minPrice =
-            candlesInRange.map(lowest).whereType<double>().reduce(min);
+        candlesInRange.map(lowest).whereType<double>().reduce(min);
         final maxVol = candlesInRange
             .map((c) => c.volume)
             .whereType<double>()
@@ -185,6 +193,7 @@ class _InteractiveChartState extends State<InteractiveChart> {
               child: CustomPaint(
                 size: size,
                 painter: ChartPainter(
+                  line: widget.line,
                   params: params,
                   getTimeLabel: widget.timeLabel ?? defaultTimeLabel,
                   getPriceLabel: widget.priceLabel ?? defaultPriceLabel,
@@ -220,8 +229,22 @@ class _InteractiveChartState extends State<InteractiveChart> {
               if (widget.onTap != null) _fireOnTapEvent();
               setState(() => _tapPosition = null);
             },
-            // Pan and zoom
-            onScaleStart: (details) => _onScaleStart(details.localFocalPoint),
+            onHorizontalDragUpdate: (details) => setState(() {
+              _startOffset -= details.primaryDelta!;
+              if (_startOffset < widget.initialRight) {
+                // 保留100px限制
+                _startOffset = widget.initialRight;
+              }
+              _startOffset =
+                  _startOffset.clamp(0, _getMaxStartOffset(w, _candleWidth));
+            }),
+            onHorizontalDragEnd: (_) {
+              if (_startOffset >= _getMaxStartOffset(w, _candleWidth)) {
+                setState(() => _tapPosition = null);
+              }
+            },
+            onScaleStart: (details) =>
+                _onScaleStart(details.localFocalPoint),
             onScaleUpdate: (details) =>
                 _onScaleUpdate(details.scale, details.localFocalPoint, w),
             child: child,
@@ -264,30 +287,29 @@ class _InteractiveChartState extends State<InteractiveChart> {
     });
   }
 
-  _handleResize(double w) {
-    if (w == _prevChartWidth) return;
-    if (_prevChartWidth != null) {
-      // Re-clamp when size changes (e.g. screen rotation)
-      _candleWidth = _candleWidth.clamp(
-        _getMinCandleWidth(w),
-        _getMaxCandleWidth(w),
-      );
-      _startOffset = _startOffset.clamp(
-        0,
-        _getMaxStartOffset(w, _candleWidth),
-      );
-    } else {
+  _handleResize(double initialWidth) {
+    if (_prevChartWidth == null) {
       // Default zoom level. Defaults to a 90 day chart, but configurable.
       // If data is shorter, we use the whole range.
       final count = min(
         widget.candles.length,
         widget.initialVisibleCandleCount,
       );
-      _candleWidth = w / count;
+      _candleWidth = initialWidth / count;
       // Default show the latest available data, e.g. the most recent 90 days.
       _startOffset = (widget.candles.length - count) * _candleWidth;
+    } else {
+      // Re-clamp when size changes (e.g. screen rotation)
+      _candleWidth = _candleWidth.clamp(
+        _getMinCandleWidth(_prevChartWidth!),
+        _getMaxCandleWidth(_prevChartWidth!),
+      );
+      _startOffset = _startOffset.clamp(
+        0,
+        _getMaxStartOffset(_prevChartWidth!, _candleWidth),
+      );
     }
-    _prevChartWidth = w;
+    _prevChartWidth = initialWidth;
   }
 
   // The narrowest candle width, i.e. when drawing all available data points.
@@ -300,7 +322,7 @@ class _InteractiveChartState extends State<InteractiveChart> {
   double _getMaxStartOffset(double w, double candleWidth) {
     final count = w / candleWidth; // visible candles in the window
     final start = widget.candles.length - count;
-    return max(0, candleWidth * start);
+    return max(0, candleWidth * start)+widget.initialRight;
   }
 
   String defaultTimeLabel(int timestamp, int visibleDataCount) {

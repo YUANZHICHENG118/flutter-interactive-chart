@@ -14,12 +14,14 @@ class ChartPainter extends CustomPainter {
   final TimeLabelGetter getTimeLabel;
   final PriceLabelGetter getPriceLabel;
   final OverlayInfoGetter getOverlayInfo;
+  final bool line;
 
   ChartPainter({
     required this.params,
     required this.getTimeLabel,
     required this.getPriceLabel,
     required this.getOverlayInfo,
+    required this.line
   });
 
   @override
@@ -117,7 +119,7 @@ class ChartPainter extends CustomPainter {
     final close = candle.close;
     final high = candle.high;
     final low = candle.low;
-    if (open != null && close != null) {
+    if (open != null && close != null&& !line) {
       final color = open > close
           ? params.style.priceLossColor
           : params.style.priceGainColor;
@@ -137,16 +139,41 @@ class ChartPainter extends CustomPainter {
             ..color = color,
         );
       }
+
     }
+
+    if(line){
+      // 绘制最新价折线图
+      final latestPriceLinePaint = Paint()
+        ..strokeWidth = 2.0
+        ..color = Colors.blue;
+      final previousX = (i - 1) * params.candleWidth;
+      final currentX = i * params.candleWidth;
+      final previousPrice = params.candles.at(i - 1);
+      final currentPrice = params.candles[i];
+      if(previousPrice!=null&&currentPrice!=null){
+        canvas.drawLine(
+          Offset(previousX, params.fitPrice(previousPrice.close??0)),
+          Offset(currentX, params.fitPrice(currentPrice.close??0)),
+          latestPriceLinePaint,
+        );
+
+      }
+    }
+
     // Draw volume bar
     final volume = candle.volume;
-    if (volume != null) {
+
+    if (volume != null&&open != null && close != null) {
+      final color = open > close
+          ? params.style.priceLossColor
+          : params.style.priceGainColor;
       canvas.drawLine(
         Offset(x, params.chartHeight),
         Offset(x, params.fitVolume(volume)),
         Paint()
           ..strokeWidth = thickWidth
-          ..color = params.style.volumeColor,
+          ..color = color,
       );
     }
     // Draw trend line
@@ -190,6 +217,10 @@ class ChartPainter extends CustomPainter {
         }
       }
     }
+
+
+
+
   }
 
   void _drawTapHighlightAndOverlay(canvas, PainterParams params) {

@@ -71,6 +71,7 @@ class CandleData {
     return result;
   }
 
+
   @override
   String toString() => "<CandleData ($timestamp: $close)>";
 }
