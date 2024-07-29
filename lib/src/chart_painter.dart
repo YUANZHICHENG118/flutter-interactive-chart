@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:interactive_chart/src/utils/data_util.dart';
 
 import 'candle_data.dart';
 import 'painter_params.dart';
@@ -219,6 +220,8 @@ class ChartPainter extends CustomPainter {
       }
     }
 
+    _drawKDJIndicator(canvas, params);
+
   }
 
   void _drawTapHighlightAndOverlay(canvas, PainterParams params) {
@@ -326,3 +329,50 @@ extension ElementAtOrNull<E> on List<E> {
     return elementAt(index);
   }
 }
+
+
+void _drawKDJIndicator(Canvas canvas, PainterParams params) {
+  final double kdjHeight = params.chartHeight * 0.3;
+  final double kdjTop = params.chartHeight+50;
+  final double kdjBottom = kdjTop + kdjHeight;
+
+  final Paint kPaint = Paint()
+    ..color = Colors.blue
+    ..strokeWidth = 1.0;
+
+  final Paint dPaint = Paint()
+    ..color = Colors.red
+    ..strokeWidth = 1.0;
+
+  final Paint jPaint = Paint()
+    ..color = Colors.green
+    ..strokeWidth = 1.0;
+
+  for (int i = 1; i < params.candles.length; i++) {
+    final candle = params.candles[i];
+    final previousCandle = params.candles[i - 1];
+
+    if (candle.k != null && candle.d != null && candle.j != null) {
+      final double x1 = (i - 1) * params.candleWidth;
+      final double x2 = i * params.candleWidth;
+
+      if (previousCandle.k != null && previousCandle.d != null && previousCandle.j != null) {
+        final double kY1 = kdjBottom - (previousCandle.k! / 100) * kdjHeight;
+        final double kY2 = kdjBottom - (candle.k! / 100) * kdjHeight;
+
+        final double dY1 = kdjBottom - (previousCandle.d! / 100) * kdjHeight;
+        final double dY2 = kdjBottom - (candle.d! / 100) * kdjHeight;
+
+        final double jY1 = kdjBottom - (previousCandle.j! / 100) * kdjHeight;
+        final double jY2 = kdjBottom - (candle.j! / 100) * kdjHeight;
+
+        canvas.drawLine(Offset(x1, kY1), Offset(x2, kY2), kPaint);
+        canvas.drawLine(Offset(x1, dY1), Offset(x2, dY2), dPaint);
+        canvas.drawLine(Offset(x1, jY1), Offset(x2, jY2), jPaint);
+
+        canvas.restore();
+      }
+    }
+  }
+}
+
