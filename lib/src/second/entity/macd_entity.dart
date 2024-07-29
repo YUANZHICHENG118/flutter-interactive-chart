@@ -7,4 +7,5 @@ mixin MACDEntity on KDJEntity, RSIEntity, WREntity, CCIEntity {
   double? dea;
   double? dif;
   double? macd;
+  double? histogram;
 }

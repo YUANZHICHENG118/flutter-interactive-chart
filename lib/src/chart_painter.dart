@@ -220,7 +220,12 @@ class ChartPainter extends CustomPainter {
       }
     }
 
-    _drawKDJIndicator(canvas, params);
+    // kdj
+    //_drawKDJIndicator(canvas, params);
+    // rsi
+    //_drawRSIIndicator(canvas, params);
+// MACD
+    _drawMACDIndicator(canvas, params);
 
   }
 
@@ -240,6 +245,7 @@ class ChartPainter extends CustomPainter {
     canvas.restore();
     // Draw info pane
     _drawTapInfoOverlay(canvas, params, candle);
+
   }
 
   void _drawTapInfoOverlay(canvas, PainterParams params, CandleData candle) {
@@ -330,11 +336,10 @@ extension ElementAtOrNull<E> on List<E> {
   }
 }
 
-
 void _drawKDJIndicator(Canvas canvas, PainterParams params) {
   final double kdjHeight = params.chartHeight * 0.3;
   final double kdjTop = params.chartHeight+50;
-  final double kdjBottom = kdjTop + kdjHeight;
+  final double kdjBottom = kdjTop + kdjHeight+20;
 
   final Paint kPaint = Paint()
     ..color = Colors.blue
@@ -347,6 +352,10 @@ void _drawKDJIndicator(Canvas canvas, PainterParams params) {
   final Paint jPaint = Paint()
     ..color = Colors.green
     ..strokeWidth = 1.0;
+
+  double? latestK;
+  double? latestD;
+  double? latestJ;
 
   for (int i = 1; i < params.candles.length; i++) {
     final candle = params.candles[i];
@@ -369,10 +378,180 @@ void _drawKDJIndicator(Canvas canvas, PainterParams params) {
         canvas.drawLine(Offset(x1, kY1), Offset(x2, kY2), kPaint);
         canvas.drawLine(Offset(x1, dY1), Offset(x2, dY2), dPaint);
         canvas.drawLine(Offset(x1, jY1), Offset(x2, jY2), jPaint);
-
-        canvas.restore();
       }
+
+      latestK = candle.k;
+      latestD = candle.d;
+      latestJ = candle.j;
     }
+  }
+
+  // 在KDJ图表的左上角绘制K、D、J的数值
+  if (latestK != null && latestD != null && latestJ != null) {
+    final textPainterK = TextPainter(
+      text: TextSpan(
+        text: 'K: ${latestK.toStringAsFixed(2)}',
+        style: TextStyle(color: Colors.blue, fontSize: 12),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final textPainterD = TextPainter(
+      text: TextSpan(
+        text: 'D: ${latestD.toStringAsFixed(2)}',
+        style: TextStyle(color: Colors.red, fontSize: 12),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final textPainterJ = TextPainter(
+      text: TextSpan(
+        text: 'J: ${latestJ.toStringAsFixed(2)}',
+        style: TextStyle(color: Colors.green, fontSize: 12),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    textPainterK.paint(canvas, Offset(5, kdjTop ));
+    textPainterD.paint(canvas, Offset(80, kdjTop ));
+    textPainterJ.paint(canvas, Offset(150, kdjTop));
+    canvas.restore();
+
   }
 }
 
+void _drawRSIIndicator(Canvas canvas, PainterParams params) {
+  final double rsiHeight = params.chartHeight * 0.2;
+  final double rsiTop = params.chartHeight * 1.3;
+  final double rsiBottom = rsiTop + rsiHeight+20;
+
+  final Paint rsiPaint = Paint()
+    ..color = Colors.purple
+    ..strokeWidth = 1.0;
+
+  double? latestRSI;
+
+  for (int i = 1; i < params.candles.length; i++) {
+    final candle = params.candles[i];
+    final previousCandle = params.candles[i - 1];
+
+    if (candle.rsi1 != null) {
+      final double x1 = (i - 1) * params.candleWidth;
+      final double x2 = i * params.candleWidth;
+
+      if (previousCandle.rsi1 != null) {
+        final double rsiY1 = rsiBottom - (previousCandle.rsi1! / 100) * rsiHeight;
+        final double rsiY2 = rsiBottom - (candle.rsi1! / 100) * rsiHeight;
+
+        canvas.drawLine(Offset(x1, rsiY1), Offset(x2, rsiY2), rsiPaint);
+      }
+
+      latestRSI = candle.rsi1;
+    }
+  }
+
+  // 在RSI图表的左上角绘制RSI的数值
+  if (latestRSI != null) {
+    final textPainterRSI = TextPainter(
+      text: TextSpan(
+        text: 'RSI: ${latestRSI.toStringAsFixed(2)}',
+        style: TextStyle(color: Colors.purple, fontSize: 12),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    textPainterRSI.paint(canvas, Offset(5, rsiTop + 5));
+    canvas.restore();
+  }
+}
+void _drawMACDIndicator(Canvas canvas, PainterParams params) {
+  final double macdMaxHeight = 50.0; // 最大高度限制为100px
+  final double macdTop = params.chartHeight * 1.6;
+  final double macdBottom = macdTop + macdMaxHeight;
+
+  // 计算所有DIF和DEA的最大绝对值
+  double maxAbsoluteValue = 0.0;
+  for (final candle in params.candles) {
+    if (candle.dif != null && candle.dea != null) {
+      maxAbsoluteValue = max(maxAbsoluteValue, candle.dif!.abs());
+      maxAbsoluteValue = max(maxAbsoluteValue, candle.dea!.abs());
+    }
+  }
+
+  final Paint difPaint = Paint()
+    ..color = Colors.orange
+    ..strokeWidth = 1.0;
+
+  final Paint deaPaint = Paint()
+    ..color = Colors.blue
+    ..strokeWidth = 1.0;
+
+  final Paint histogramPositivePaint = Paint()
+    ..color = Colors.green
+    ..style = PaintingStyle.fill;
+
+  final Paint histogramNegativePaint = Paint()
+    ..color = Colors.red
+    ..style = PaintingStyle.fill;
+
+  double? latestDIF;
+  double? latestDEA;
+
+  for (int i = 1; i < params.candles.length; i++) {
+    final candle = params.candles[i];
+    final previousCandle = params.candles[i - 1];
+
+    if (candle.dif != null && candle.dea != null) {
+      final double x1 = (i - 1) * params.candleWidth;
+      final double x2 = i * params.candleWidth;
+
+      if (previousCandle.dif != null && previousCandle.dea != null) {
+        final double difY1 = macdBottom - (previousCandle.dif! / maxAbsoluteValue) * macdMaxHeight;
+        final double difY2 = macdBottom - (candle.dif! / maxAbsoluteValue) * macdMaxHeight;
+
+        final double deaY1 = macdBottom - (previousCandle.dea! / maxAbsoluteValue) * macdMaxHeight;
+        final double deaY2 = macdBottom - (candle.dea! / maxAbsoluteValue) * macdMaxHeight;
+
+        // 绘制DIF线和DEA线
+        canvas.drawLine(Offset(x1, difY1), Offset(x2, difY2), difPaint);
+        canvas.drawLine(Offset(x1, deaY1), Offset(x2, deaY2), deaPaint);
+      }
+
+      // 绘制Histogram（单像素宽度）
+      final double histogramHeight = (candle.histogram! / maxAbsoluteValue) * macdMaxHeight;
+      final Paint histogramPaint = candle.histogram! >= 0
+          ? histogramPositivePaint
+          : histogramNegativePaint;
+
+      canvas.drawRect(
+        Rect.fromLTWH(x2, macdBottom, 1, -histogramHeight),
+        histogramPaint,
+      );
+
+      latestDIF = candle.dif;
+      latestDEA = candle.dea;
+    }
+  }
+
+  // 在MACD图表的左上角绘制DIF和DEA的数值
+  if (latestDIF != null && latestDEA != null) {
+    final textPainterDIF = TextPainter(
+      text: TextSpan(
+        text: 'DIF: ${latestDIF.toStringAsFixed(2)}',
+        style: TextStyle(color: Colors.orange, fontSize: 12),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final textPainterDEA = TextPainter(
+      text: TextSpan(
+        text: 'DEA: ${latestDEA.toStringAsFixed(2)}',
+        style: TextStyle(color: Colors.blue, fontSize: 12),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    textPainterDIF.paint(canvas, Offset(5, macdTop));
+    textPainterDEA.paint(canvas, Offset(100, macdTop));
+    canvas.restore();
+  }
+}

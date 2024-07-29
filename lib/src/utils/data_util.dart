@@ -108,6 +108,7 @@ class DataUtil {
       entity.dif = dif;
       entity.dea = dea;
       entity.macd = macd;
+      entity.histogram=dif-dea;
     }
   }
 
