@@ -8,6 +8,7 @@ import 'package:intl/intl.dart' as intl;
 import 'candle_data.dart';
 import 'chart_painter.dart';
 import 'chart_style.dart';
+import 'constant/view_constants.dart';
 import 'painter_params.dart';
 
 class InteractiveChart extends StatefulWidget {
@@ -64,6 +65,7 @@ class InteractiveChart extends StatefulWidget {
   final bool line;
 
   final double initialRight;
+  final List<SecondaryState> secondaryState;
 
 
   const InteractiveChart({
@@ -78,6 +80,7 @@ class InteractiveChart extends StatefulWidget {
     this.onTap,
     this.onCandleResize,
     this.line = false,
+    this.secondaryState=const [SecondaryState.VOL,SecondaryState.KDJ],
   })  : this.style = style ?? const ChartStyle(),
         assert(candles.length >= 3,
         "InteractiveChart requires 3 or more CandleData"),
@@ -206,6 +209,7 @@ class _InteractiveChartState extends State<InteractiveChart> {
                 size: size,
                 painter: ChartPainter(
                   line: widget.line,
+                  secondaryState: widget.secondaryState,
                   params: params,
                   getTimeLabel: widget.timeLabel ?? defaultTimeLabel,
                   getPriceLabel: widget.priceLabel ?? defaultPriceLabel,

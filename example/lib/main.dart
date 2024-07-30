@@ -112,6 +112,7 @@ class _MyAppState extends State<MyApp> {
             )
             else  SizedBox(height:300,child: InteractiveChart(
               line: _line,
+              secondaryState:const [SecondaryState.KDJ,SecondaryState.MACD,SecondaryState.RSI],
               /** Only [candles] is required */
               candles: _data,
               /** Uncomment the following for examples on optional parameters */

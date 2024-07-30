@@ -1,9 +1,9 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:interactive_chart/src/utils/data_util.dart';
 
 import 'candle_data.dart';
+import 'constant/view_constants.dart';
 import 'painter_params.dart';
 
 typedef TimeLabelGetter = String Function(int timestamp, int visibleDataCount);
@@ -16,13 +16,15 @@ class ChartPainter extends CustomPainter {
   final PriceLabelGetter getPriceLabel;
   final OverlayInfoGetter getOverlayInfo;
   final bool line;
+  final List<SecondaryState> secondaryState;
 
   ChartPainter({
     required this.params,
     required this.getTimeLabel,
     required this.getPriceLabel,
     required this.getOverlayInfo,
-    required this.line
+    required this.line,
+    required this.secondaryState,
   });
 
   @override
@@ -43,6 +45,7 @@ class ChartPainter extends CustomPainter {
     for (int i = 0; i < params.candles.length; i++) {
       _drawSingleDay(canvas, params, i);
     }
+
     canvas.restore();
 
     // Draw tap highlight & overlay
@@ -160,21 +163,6 @@ class ChartPainter extends CustomPainter {
       }
     }
 
-    // Draw volume bar
-    final volume = candle.volume;
-
-    if (volume != null && open != null && close != null) {
-      final color = open > close
-          ? params.style.priceLossColor
-          : params.style.priceGainColor;
-      canvas.drawLine(
-        Offset(x, params.chartHeight),
-        Offset(x, params.fitVolume(volume)),
-        Paint()
-          ..strokeWidth = thickWidth
-          ..color = color,
-      );
-    }
     // Draw trend line
     for (int j = 0; j < candle.trends.length; j++) {
       final trendLinePaint = params.style.trendLineStyles.at(j) ??
@@ -220,12 +208,26 @@ class ChartPainter extends CustomPainter {
       }
     }
 
-    // kdj
-    //_drawKDJIndicator(canvas, params);
-    // rsi
-    //_drawRSIIndicator(canvas, params);
-// MACD
-    _drawMACDIndicator(canvas, params);
+
+    // Draw volume bar
+      final volume = candle.volume;
+      if (volume != null && open != null && close != null) {
+        final color = open > close
+            ? params.style.priceLossColor
+            : params.style.priceGainColor;
+        canvas.drawLine(
+          Offset(x, params.chartHeight),
+          Offset(x, params.fitVolume(volume)),
+          Paint()
+            ..strokeWidth = thickWidth
+            ..color = color,
+        );
+      }
+
+
+        // 绘制指标
+        _drawIndicators(canvas,params,secondaryState);
+
 
   }
 
@@ -336,10 +338,85 @@ extension ElementAtOrNull<E> on List<E> {
   }
 }
 
-void _drawKDJIndicator(Canvas canvas, PainterParams params) {
-  final double kdjHeight = params.chartHeight * 0.3;
-  final double kdjTop = params.chartHeight+50;
-  final double kdjBottom = kdjTop + kdjHeight+20;
+void _drawIndicators(Canvas canvas, PainterParams params, List<SecondaryState> indicators) {
+  final double totalHeight = params.chartHeight;
+  final double margin = 30.0; // 各个指标之间的间隔
+  final int numberOfIndicators = indicators.length;
+  final double indicatorHeight = 50;
+
+  double previousBottom = totalHeight+10;
+
+
+  for (var indicator in indicators) {
+    switch (indicator) {
+      // case SecondaryState.VOL:
+      // // 绘制成交量指标
+      //   _drawVolumeIndicator(canvas, params, previousBottom, indicatorHeight);
+      //   break;
+      case SecondaryState.KDJ:
+      // 绘制KDJ指标
+        _drawKDJIndicator(canvas, params, previousBottom, indicatorHeight);
+        break;
+      case SecondaryState.MACD:
+      // 绘制MACD指标
+        _drawMACDIndicator(canvas, params, previousBottom, indicatorHeight);
+        break;
+      case SecondaryState.RSI:
+      // 绘制RSI指标
+        _drawRSIIndicator(canvas, params, previousBottom, indicatorHeight);
+        break;
+    }
+    previousBottom += indicatorHeight + margin;
+  }
+}
+
+void _drawRSIIndicator(Canvas canvas, PainterParams params,double previousBottom, double height) {
+  final double rsiMaxHeight = height; // 最大高度限制为50px
+  final double rsiTop = previousBottom + 20;
+  final double rsiBottom = rsiTop + rsiMaxHeight+50;
+
+  final Paint rsiPaint = Paint()
+    ..color = Colors.purple
+    ..strokeWidth = 1.0;
+
+  double? latestRSI;
+
+  for (int i = 1; i < params.candles.length; i++) {
+    final candle = params.candles[i];
+    final previousCandle = params.candles[i - 1];
+
+    if (candle.rsi1 != null) {
+      final double x1 = (i - 1) * params.candleWidth;
+      final double x2 = i * params.candleWidth;
+
+      if (previousCandle.rsi1 != null) {
+        final double rsiY1 = rsiBottom - (previousCandle.rsi1! / 100) * rsiMaxHeight;
+        final double rsiY2 = rsiBottom - (candle.rsi1! / 100) * rsiMaxHeight;
+
+        canvas.drawLine(Offset(x1, rsiY1), Offset(x2, rsiY2), rsiPaint);
+      }
+
+      latestRSI = candle.rsi1;
+    }
+  }
+
+  if (latestRSI != null) {
+    final textPainterRSI = TextPainter(
+      text: TextSpan(
+        text: 'RSI: ${latestRSI.toStringAsFixed(2)}',
+        style: TextStyle(color: Colors.purple, fontSize: 12),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    textPainterRSI.paint(canvas, Offset(5, rsiTop + 5));
+  }
+}
+
+void _drawKDJIndicator(Canvas canvas, PainterParams params,double previousBottom, double height) {
+  final double kdjMaxHeight = height; // 最大高度限制为100px
+  final double kdjTop =previousBottom + 20;
+  final double kdjBottom = kdjTop + kdjMaxHeight+20;
 
   final Paint kPaint = Paint()
     ..color = Colors.blue
@@ -352,6 +429,15 @@ void _drawKDJIndicator(Canvas canvas, PainterParams params) {
   final Paint jPaint = Paint()
     ..color = Colors.green
     ..strokeWidth = 1.0;
+
+  double maxAbsoluteValue = 0.0;
+  for (final candle in params.candles) {
+    if (candle.k != null && candle.d != null && candle.j != null) {
+      maxAbsoluteValue = max(maxAbsoluteValue, candle.k!.abs());
+      maxAbsoluteValue = max(maxAbsoluteValue, candle.d!.abs());
+      maxAbsoluteValue = max(maxAbsoluteValue, candle.j!.abs());
+    }
+  }
 
   double? latestK;
   double? latestD;
@@ -366,14 +452,14 @@ void _drawKDJIndicator(Canvas canvas, PainterParams params) {
       final double x2 = i * params.candleWidth;
 
       if (previousCandle.k != null && previousCandle.d != null && previousCandle.j != null) {
-        final double kY1 = kdjBottom - (previousCandle.k! / 100) * kdjHeight;
-        final double kY2 = kdjBottom - (candle.k! / 100) * kdjHeight;
+        final double kY1 = kdjBottom - (previousCandle.k! / maxAbsoluteValue) * kdjMaxHeight;
+        final double kY2 = kdjBottom - (candle.k! / maxAbsoluteValue) * kdjMaxHeight;
 
-        final double dY1 = kdjBottom - (previousCandle.d! / 100) * kdjHeight;
-        final double dY2 = kdjBottom - (candle.d! / 100) * kdjHeight;
+        final double dY1 = kdjBottom - (previousCandle.d! / maxAbsoluteValue) * kdjMaxHeight;
+        final double dY2 = kdjBottom - (candle.d! / maxAbsoluteValue) * kdjMaxHeight;
 
-        final double jY1 = kdjBottom - (previousCandle.j! / 100) * kdjHeight;
-        final double jY2 = kdjBottom - (candle.j! / 100) * kdjHeight;
+        final double jY1 = kdjBottom - (previousCandle.j! / maxAbsoluteValue) * kdjMaxHeight;
+        final double jY2 = kdjBottom - (candle.j! / maxAbsoluteValue) * kdjMaxHeight;
 
         canvas.drawLine(Offset(x1, kY1), Offset(x2, kY2), kPaint);
         canvas.drawLine(Offset(x1, dY1), Offset(x2, dY2), dPaint);
@@ -386,7 +472,6 @@ void _drawKDJIndicator(Canvas canvas, PainterParams params) {
     }
   }
 
-  // 在KDJ图表的左上角绘制K、D、J的数值
   if (latestK != null && latestD != null && latestJ != null) {
     final textPainterK = TextPainter(
       text: TextSpan(
@@ -412,62 +497,16 @@ void _drawKDJIndicator(Canvas canvas, PainterParams params) {
       textDirection: TextDirection.ltr,
     )..layout();
 
-    textPainterK.paint(canvas, Offset(5, kdjTop ));
-    textPainterD.paint(canvas, Offset(80, kdjTop ));
+    textPainterK.paint(canvas, Offset(5, kdjTop));
+    textPainterD.paint(canvas, Offset(80, kdjTop));
     textPainterJ.paint(canvas, Offset(150, kdjTop));
-    canvas.restore();
-
   }
 }
 
-void _drawRSIIndicator(Canvas canvas, PainterParams params) {
-  final double rsiHeight = params.chartHeight * 0.2;
-  final double rsiTop = params.chartHeight * 1.3;
-  final double rsiBottom = rsiTop + rsiHeight+20;
-
-  final Paint rsiPaint = Paint()
-    ..color = Colors.purple
-    ..strokeWidth = 1.0;
-
-  double? latestRSI;
-
-  for (int i = 1; i < params.candles.length; i++) {
-    final candle = params.candles[i];
-    final previousCandle = params.candles[i - 1];
-
-    if (candle.rsi1 != null) {
-      final double x1 = (i - 1) * params.candleWidth;
-      final double x2 = i * params.candleWidth;
-
-      if (previousCandle.rsi1 != null) {
-        final double rsiY1 = rsiBottom - (previousCandle.rsi1! / 100) * rsiHeight;
-        final double rsiY2 = rsiBottom - (candle.rsi1! / 100) * rsiHeight;
-
-        canvas.drawLine(Offset(x1, rsiY1), Offset(x2, rsiY2), rsiPaint);
-      }
-
-      latestRSI = candle.rsi1;
-    }
-  }
-
-  // 在RSI图表的左上角绘制RSI的数值
-  if (latestRSI != null) {
-    final textPainterRSI = TextPainter(
-      text: TextSpan(
-        text: 'RSI: ${latestRSI.toStringAsFixed(2)}',
-        style: TextStyle(color: Colors.purple, fontSize: 12),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    textPainterRSI.paint(canvas, Offset(5, rsiTop + 5));
-    canvas.restore();
-  }
-}
-void _drawMACDIndicator(Canvas canvas, PainterParams params) {
-  final double macdMaxHeight = 50.0; // 最大高度限制为100px
-  final double macdTop = params.chartHeight * 1.6;
-  final double macdBottom = macdTop + macdMaxHeight;
+void _drawMACDIndicator(Canvas canvas, PainterParams params,double previousBottom, double height) {
+  final double macdMaxHeight = height; // 最大高度限制为100px
+  final double macdTop =previousBottom + 20;
+  final double macdBottom = macdTop + macdMaxHeight+20;
 
   // 计算所有DIF和DEA的最大绝对值
   double maxAbsoluteValue = 0.0;
